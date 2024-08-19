@@ -26,6 +26,7 @@ def register():
         contact = data.get('contact')
         email = data.get('email')
         password = data.get('password')
+        avatar_url = data.get('avatar_url', "https://cdn-icons-png.flaticon.com/128/17588/17588241.png")  # Default avatar URL
 
         # Validate required fields
         required_fields = ['first_name', 'last_name', 'contact', 'password', 'email']
@@ -46,7 +47,7 @@ def register():
         hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
 
         # Create a new user object
-        new_user = User(first_name=first_name, last_name=last_name, email=email, contact=contact, password=hashed_password)
+        new_user = User(first_name=first_name, last_name=last_name, email=email, contact=contact, password=hashed_password, avatar_url=avatar_url)
 
         # Add new user to the database
         db.session.add(new_user)
@@ -61,6 +62,7 @@ def register():
                 'last_name': new_user.last_name,
                 'email': new_user.email,
                 'contact': new_user.contact,
+                'avatar_url': new_user.avatar_url,
                 'created_at': new_user.created_at,
             } 
         }), 201
@@ -78,14 +80,21 @@ def login():
         email = data.get("email")
         password = data.get("password")
 
-        # Retrieve user by email
         user = User.query.filter_by(email=email).first()
 
-        # Check if user exists and password is correct
         if user and bcrypt.check_password_hash(user.password, password):
+            # Check if the user has an avatar set; if not, provide a default avatar
+            # Set default avatar
+            avatar_url = user.avatar_url or "https://cdn-icons-png.flaticon.com/128/17588/17588241.png"
+
             # Create access token
             access_token = create_access_token(identity=user.id)
-            return jsonify({'access_token': access_token, 'user_id': user.id}), 200
+            return jsonify({
+                'access_token': access_token,
+                'user_id': user.id,
+                'user_name': f"{user.first_name} {user.last_name}",
+                'avatar_url': avatar_url  # Return the avatar URL
+            }), 200
         else:
             return jsonify({'error': 'Invalid email or password'}), 401
 
