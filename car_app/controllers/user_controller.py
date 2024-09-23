@@ -5,6 +5,8 @@ from car_app.Models.user import User, db
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity 
 from flask_jwt_extended import JWTManager
+from datetime import datetime, timedelta
+import secrets
 
 # Create a Blueprint for authentication endpoints
 user = Blueprint('user', __name__, url_prefix='/api/v1/user')
@@ -75,31 +77,57 @@ def register():
 @user.route('/login', methods=["POST"])
 def login():
     try:
-        # Extract request data
         data = request.json
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
         email = data.get("email")
         password = data.get("password")
-
         user = User.query.filter_by(email=email).first()
 
         if user and bcrypt.check_password_hash(user.password, password):
-            # Check if the user has an avatar set; if not, provide a default avatar
-            # Set default avatar
             avatar_url = user.avatar_url or "https://cdn-icons-png.flaticon.com/128/17588/17588241.png"
-
-            # Create access token
             access_token = create_access_token(identity=user.id)
             return jsonify({
                 'access_token': access_token,
                 'user_id': user.id,
                 'user_name': f"{user.first_name} {user.last_name}",
-                'avatar_url': avatar_url  # Return the avatar URL
+                'avatar_url': avatar_url
             }), 200
         else:
             return jsonify({'error': 'Invalid email or password'}), 401
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+    
+@user.route('/logout', methods=["POST"])
+@jwt_required()
+def logout():
+    return jsonify({'message': 'Logout successful'}), 200
+
+def generate_token(user_id):
+    try:
+        # Set the expiration time for the token (e.g., 1 day)
+        expiration_time = datetime.utcnow() + timedelta(days=1)
+        
+        # payload is a JSON object that contains assertions about the user or any entity
+        # In this case the payload is containing user_id and expiration time
+        payload = {
+            'user_id': user_id,
+            'exp': expiration_time
+        }
+
+        # Encode the payload and create the token jwt(JSON Web Tokens)
+        # algorithm is the method used for signing and verifying the token
+        token = jwt.encode(payload, SECRET_KEY, algorithm='HS256') # type: ignore
+
+        return token
+
+    except Exception as e:
+        # Handle token generation error
+        print(f"Token generation failed: {str(e)}")
+
 
 # Define the edit user endpoint
 @user.route('/edit/<int:user_id>', methods=["PUT"])

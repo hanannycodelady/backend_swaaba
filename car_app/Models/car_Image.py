@@ -1,4 +1,5 @@
 from car_app import db
+import os
 
 class CarImage(db.Model):
     __tablename__ = 'car_image'
